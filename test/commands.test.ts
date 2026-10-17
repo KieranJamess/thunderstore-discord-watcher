@@ -164,3 +164,10 @@ it("fetch handler rejects unsigned requests", async () => {
   await waitOnExecutionContext(ctx);
   expect(res.status).toBe(401);
 });
+
+it("caps each server at 25 watches", async () => {
+  for (let i = 0; i < 25; i++) await addWatch(env.DB, "g1", `c${i}`, communityTargetId("slip-skid"), "");
+  const { edited } = await run(watchMod("A-B"), { [MOD_API]: () => json(modBody) });
+  expect(edited).toBe("This server already has 25 watches. Remove one with /unwatch first.");
+  expect(await listWatches(env.DB, "g1")).toHaveLength(25);
+});

@@ -21,6 +21,8 @@ export type ListedMod = {
 
 const BASE = "https://thunderstore.io";
 const PART = /^[A-Za-z0-9_]+$/;
+const TIMEOUT_MS = 8000;
+const MAX_COMMUNITY_PAGES = 10;
 
 /** Accepts a Thunderstore package URL or `Author-ModName[-version]`. */
 export function parseModRef(input: string): ModRef | null {
@@ -61,7 +63,7 @@ export const modUrl = (ref: ModRef) => `${BASE}/package/${ref.namespace}/${ref.n
 
 /** GET JSON; null on 404, throws on any other failure. */
 async function getJson<T>(http: Http, url: string): Promise<T | null> {
-  const res = await http(url, { headers: { accept: "application/json" } });
+  const res = await http(url, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(TIMEOUT_MS) });
   if (res.status === 404) return null;
   if (!res.ok) throw new Error(`Thunderstore ${res.status} for ${url}`);
   return res.json<T>();
@@ -112,7 +114,7 @@ export async function fetchNewestMods(http: Http, community: string): Promise<Li
 export async function fetchCommunities(http: Http): Promise<{ identifier: string; name: string }[]> {
   const out: { identifier: string; name: string }[] = [];
   let url: string | null = `${BASE}/api/experimental/community/`;
-  while (url) {
+  for (let page = 0; url && page < MAX_COMMUNITY_PAGES; page++) {
     const d: {
       pagination: { next_link: string | null };
       results: { identifier: string; name: string }[];

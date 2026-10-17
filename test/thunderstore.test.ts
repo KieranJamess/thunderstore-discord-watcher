@@ -136,3 +136,13 @@ describe("fetchCommunities", () => {
     expect(calls.map((c) => c.url)).toEqual([first, second]);
   });
 });
+
+it("puts a timeout on Thunderstore requests", async () => {
+  let signal: AbortSignal | null | undefined;
+  const http = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    signal = init?.signal;
+    return json({}, 404);
+  }) as typeof fetch;
+  await fetchMod(http, { namespace: "A", name: "B" });
+  expect(signal).toBeInstanceOf(AbortSignal);
+});

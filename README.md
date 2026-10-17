@@ -18,6 +18,8 @@ It runs as a single Cloudflare Worker on the free plan. It checks Thunderstore e
 
 When you add a watch, the bot records what already exists and only posts changes after that.
 
+Each server can have up to 25 watches.
+
 By default, only members with **Manage Server** can use `/watch` and `/unwatch`. Admins can change who can use each command in **Server Settings → Integrations → (this bot)**.
 
 ## Self-hosting
@@ -53,5 +55,6 @@ You need Node.js 22.9+, a Cloudflare account and a Discord account.
 - Community watches read the newest-first listing that thunderstore.io's own website uses. That listing isn't an officially documented API, so if Thunderstore changes it, community watches may stop working until the bot is updated. Mod watches use the documented API.
 - If a community gets more new mods in one 5-minute window than fit on the first page of that listing, the extra mods aren't announced. One post shows at most 10 mods.
 - If the bot loses access to a channel, it removes that channel's watches.
+- On the Workers free plan, each run can make only about 50 web requests and 50 database queries, so a run checks around 10 to 20 targets and sends around 20 to 30 posts. When many targets are watched, each one is checked less often than every 5 minutes, and posts for a widely watched mod spread over a few runs. A post that fails is retried up to 5 times.
 
 Found a bug? Open an issue.

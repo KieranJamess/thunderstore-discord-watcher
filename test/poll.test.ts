@@ -141,26 +141,120 @@ describe("failures", () => {
   });
 });
 
-it("stops when the budget runs out, leaving the rest for next run", async () => {
+it("stops checking when the budget runs out, leaving the rest for next run", async () => {
   await addWatch(env.DB, "g1", "c1", MOD, "1.0.0");
   await addWatch(env.DB, "g1", "c1", COMMUNITY, "");
   const { http, calls } = fakeHttp({
     [MOD_API]: () => json(modBody("1.0.0")),
     [LISTING]: () => json({ results: [] }),
   });
-  await poll(http, 2);
+  await poll(http, 12);
   expect(calls).toHaveLength(1);
-  const untouched = (await dueTargets(env.DB, 50)).find((t) => t.checkedAt === 0);
-  expect(untouched).toBeDefined();
+  expect((await dueTargets(env.DB, 50)).filter((t) => t.checkedAt === 0)).toHaveLength(1);
 });
 
-it("refreshes the community list once a day", async () => {
-  await setMeta(env.DB, "communities_at", String(NOW - 25 * 3600_000));
+it("counts D1 queries against the budget, not just fetches", async () => {
+  // 30 targets: one fetch each would fit in 45, but not with a D1 write per target on top.
+  for (let i = 0; i < 30; i++) await addWatch(env.DB, "g1", "c1", modTargetId({ namespace: "A", name: `M${i}` }), "1.0.0");
+  const routes: Record<string, () => Response> = {};
+  for (let i = 0; i < 30; i++) {
+    routes[`https://thunderstore.io/api/experimental/package/A/M${i}/`] = () => json({ ...modBody("2.0.0"), name: `M${i}` });
+  }
+  let queries = 0;
+  const db = new Proxy(env.DB, {
+    get(target, prop) {
+      if (prop === "prepare") queries++;
+      const v = Reflect.get(target, prop);
+      return typeof v === "function" ? v.bind(target) : v;
+    },
+  });
+  const { http, calls } = fakeHttp({ ...routes, ...recordPost("c1") });
+  await runPoll({ db, http, token: "t", now: NOW });
+  expect(calls.length + queries).toBeLessThanOrEqual(45);
+});
+
+it("spreads a target with more watches than the budget over several runs", async () => {
+  for (let i = 0; i < 60; i++) await addWatch(env.DB, `g${i}`, `c${i}`, MOD, "1.0.0");
+  await addWatch(env.DB, "gx", "cx", COMMUNITY, "");
+  const routes: Record<string, (c: Call) => Response> = {
+    [MOD_API]: () => json(modBody("2.0.0")),
+    [LISTING]: () => json({ results: [] }),
+    ...recordPost("cx"),
+  };
+  for (let i = 0; i < 60; i++) Object.assign(routes, recordPost(`c${i}`));
+  const { http, calls } = fakeHttp(routes);
+  for (let run = 0; run < 5; run++) await runPoll({ db: env.DB, http, token: "t", now: NOW + run });
+  // Both targets got checked (the big one didn't block the other)...
+  expect(calls.filter((c) => c.url === LISTING).length).toBeGreaterThan(0);
+  // ...and every channel got exactly one post.
+  for (let i = 0; i < 60; i++) expect(posted[`c${i}`]).toHaveLength(1);
+});
+
+it("retries a post that failed, without re-posting to channels that got it", async () => {
+  await addWatch(env.DB, "g1", "c1", MOD, "1.0.0");
+  await addWatch(env.DB, "g1", "c2", MOD, "1.0.0");
+  let c2 = 0;
   const { http } = fakeHttp({
-    "https://thunderstore.io/api/experimental/community/": () =>
-      json({ pagination: { next_link: null }, results: [{ identifier: "slip-skid", name: "Slip & Skid" }] }),
+    [MOD_API]: () => json(modBody("2.0.0")),
+    ...recordPost("c1"),
+    [post("c2")]: (c) => {
+      if (c2++ === 0) throw new Error("network down");
+      (posted.c2 ??= []).push(JSON.parse(c.body));
+      return json({});
+    },
   });
   await poll(http);
-  expect(await searchCommunities(env.DB, "slip")).toHaveLength(1);
-  expect(await getMeta(env.DB, "communities_at")).toBe(String(NOW));
+  await runPoll({ db: env.DB, http, token: "t", now: NOW + 1 });
+  expect(posted.c1).toHaveLength(1);
+  expect(posted.c2).toHaveLength(1);
+});
+
+it("gives up on a post after 5 failed attempts", async () => {
+  await addWatch(env.DB, "g1", "c1", MOD, "1.0.0");
+  let attempts = 0;
+  const { http } = fakeHttp({
+    [MOD_API]: () => json(modBody("2.0.0")),
+    [post("c1")]: () => {
+      attempts++;
+      return json({}, 500);
+    },
+  });
+  for (let run = 0; run < 8; run++) await runPoll({ db: env.DB, http, token: "t", now: NOW + run });
+  expect(attempts).toBe(5);
+});
+
+describe("community list refresh", () => {
+  const COMMUNITIES = "https://thunderstore.io/api/experimental/community/";
+  it("runs once a day", async () => {
+    await setMeta(env.DB, "communities_at", String(NOW - 25 * 3600_000));
+    const { http } = fakeHttp({
+      [COMMUNITIES]: () => json({ pagination: { next_link: null }, results: [{ identifier: "slip-skid", name: "Slip & Skid" }] }),
+    });
+    await poll(http);
+    expect(await searchCommunities(env.DB, "slip")).toHaveLength(1);
+    expect(await getMeta(env.DB, "communities_at")).toBe(String(NOW));
+  });
+  it("stores hundreds of communities within the budget", async () => {
+    await setMeta(env.DB, "communities_at", String(NOW - 2 * 86_400_000));
+    const results = Array.from({ length: 400 }, (_, i) => ({ identifier: `game-${i}`, name: `Game ${i}` }));
+    const { http } = fakeHttp({ [COMMUNITIES]: () => json({ pagination: { next_link: null }, results }) });
+    await poll(http);
+    const n = await env.DB.prepare("SELECT count(*) AS n FROM communities").first("n");
+    expect(n).toBe(400);
+  });
+  it("waits a day before retrying after a failure", async () => {
+    await setMeta(env.DB, "communities_at", String(NOW - 2 * 86_400_000));
+    const { http, calls } = fakeHttp({ [COMMUNITIES]: () => json({}, 500) });
+    await poll(http);
+    await poll(http);
+    expect(calls.filter((c) => c.url === COMMUNITIES)).toHaveLength(1);
+  });
+  it("stops following pages at 10", async () => {
+    await setMeta(env.DB, "communities_at", String(NOW - 2 * 86_400_000));
+    const { http, calls } = fakeHttp({
+      [COMMUNITIES]: () => json({ pagination: { next_link: COMMUNITIES }, results: [{ identifier: "a", name: "A" }] }),
+    });
+    await poll(http);
+    expect(calls.filter((c) => c.url === COMMUNITIES).length).toBeLessThanOrEqual(10);
+  });
 });

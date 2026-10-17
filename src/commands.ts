@@ -1,4 +1,4 @@
-import { addWatch, communityTargetId, listWatches, modTargetId, removeWatch, searchCommunities } from "./db";
+import { MAX_WATCHES_PER_GUILD, addWatch, communityTargetId, listWatches, modTargetId, removeWatch, searchCommunities } from "./db";
 import { editOriginal } from "./discord";
 import { fetchMod, fetchNewestMods, parseModRef, type Http } from "./thunderstore";
 
@@ -14,6 +14,7 @@ type Interaction = {
 };
 
 const EPHEMERAL = 64;
+const FULL = `This server already has ${MAX_WATCHES_PER_GUILD} watches. Remove one with /unwatch first.`;
 const reply = (content: string) => ({ type: 4, data: { content, flags: EPHEMERAL } });
 
 /** Flattens one level of subcommand: returns [subcommand name | null, leaf options]. */
@@ -61,7 +62,8 @@ async function watchMod(db: D1Database, http: Http, guildId: string, channelId: 
   if (!ref) return "Couldn't read that. Paste a Thunderstore link or use Author-ModName.";
   const mod = await fetchMod(http, ref);
   if (!mod) return "Mod not found on Thunderstore.";
-  if (!(await addWatch(db, guildId, channelId, modTargetId(mod), mod.version))) return `Already watching ${mod.name} here.`;
+  const added = await addWatch(db, guildId, channelId, modTargetId(mod), mod.version);
+  if (added !== "added") return added === "full" ? FULL : `Already watching ${mod.name} here.`;
   return `Watching ${mod.name} (currently v${mod.version}) in this channel.`;
 }
 
@@ -70,9 +72,8 @@ async function watchCommunity(db: D1Database, http: Http, guildId: string, chann
   if (!/^[a-z0-9-]+$/.test(community)) return "Community not found.";
   const mods = await fetchNewestMods(http, community);
   if (!mods) return "Community not found.";
-  if (!(await addWatch(db, guildId, channelId, communityTargetId(community), mods[0]?.createdAt ?? ""))) {
-    return `Already watching ${community} here.`;
-  }
+  const added = await addWatch(db, guildId, channelId, communityTargetId(community), mods[0]?.createdAt ?? "");
+  if (added !== "added") return added === "full" ? FULL : `Already watching ${community} here.`;
   return `Watching ${community} for new mods in this channel.`;
 }
 

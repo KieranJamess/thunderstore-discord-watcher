@@ -2,6 +2,7 @@ import { modUrl, type Http, type ListedMod, type ModInfo } from "./thunderstore"
 
 const API = "https://discord.com/api/v10";
 const COLOR = 0x23a5e2;
+const TIMEOUT_MS = 8000;
 
 function fromHex(hex: string): Uint8Array | null {
   if (!/^(?:[0-9a-f]{2})+$/i.test(hex)) return null;
@@ -32,6 +33,7 @@ export async function postMessage(http: Http, token: string, channelId: string, 
     method: "POST",
     headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (res.ok) return "ok";
   return res.status === 403 || res.status === 404 ? "gone" : "error";
@@ -42,6 +44,7 @@ export async function editOriginal(http: Http, appId: string, interactionToken: 
     method: "PATCH",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ content }),
+    signal: AbortSignal.timeout(TIMEOUT_MS),
   });
 }
 

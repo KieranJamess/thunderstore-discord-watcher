@@ -59,3 +59,14 @@ it("builds embeds", () => {
     author: { name: "A" },
   });
 });
+
+it("puts a timeout on Discord requests", async () => {
+  const signals: (AbortSignal | null | undefined)[] = [];
+  const http = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+    signals.push(init?.signal);
+    return json({});
+  }) as typeof fetch;
+  await postMessage(http, "t", "1", {});
+  await editOriginal(http, "a", "t", "x");
+  expect(signals.every((s) => s instanceof AbortSignal)).toBe(true);
+});

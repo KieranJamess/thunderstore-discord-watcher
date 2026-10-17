@@ -3,17 +3,18 @@ import { describe, expect, it } from "vitest";
 import {
   addWatch,
   communityTargetId,
-  deleteChannelWatches,
+  finishPosts,
   dueTargets,
   getMeta,
   listWatches,
   modTargetId,
+  pendingPosts,
+  queueAnnouncement,
   removeWatch,
   replaceCommunities,
   saveTarget,
   searchCommunities,
   setMeta,
-  watchesFor,
 } from "../src/db";
 
 const db = () => env.DB;
@@ -28,9 +29,9 @@ it("builds target ids", () => {
 
 describe("addWatch", () => {
   it("adds once per channel and keeps the first baseline", async () => {
-    expect(await addWatch(db(), "g1", "c1", T, "1.0.0")).toBe(true);
-    expect(await addWatch(db(), "g1", "c1", T, "1.0.0")).toBe(false);
-    expect(await addWatch(db(), "g1", "c2", T, "9.9.9")).toBe(true);
+    expect(await addWatch(db(), "g1", "c1", T, "1.0.0")).toBe("added");
+    expect(await addWatch(db(), "g1", "c1", T, "1.0.0")).toBe("exists");
+    expect(await addWatch(db(), "g1", "c2", T, "9.9.9")).toBe("added");
     expect(await targetState(T)).toBe("1.0.0");
     expect((await listWatches(db(), "g1")).map((w) => w.channelId)).toEqual(["c1", "c2"]);
   });
@@ -64,21 +65,17 @@ it("dueTargets returns the least recently checked first", async () => {
   expect(await dueTargets(db(), 1)).toEqual([{ id: other, state: "", checkedAt: 100 }]);
 });
 
-it("watchesFor lists every watch on a target", async () => {
-  await addWatch(db(), "g1", "c1", T, "1.0.0");
-  await addWatch(db(), "g2", "c2", T, "1.0.0");
-  expect((await watchesFor(db(), T)).map((w) => w.guildId).sort()).toEqual(["g1", "g2"]);
-});
-
-it("deleteChannelWatches removes only that channel and orphaned targets", async () => {
+it("finishPosts removes a gone channel's watches, its queued posts and orphaned targets", async () => {
   const other = communityTargetId("slip-skid");
   await addWatch(db(), "g1", "c1", T, "1.0.0");
   await addWatch(db(), "g1", "c1", other, "");
   await addWatch(db(), "g1", "c2", T, "1.0.0");
-  await deleteChannelWatches(db(), "c1");
+  await queueAnnouncement(db(), T, "2.0.0", 1, { content: "x" });
+  await finishPosts(db(), [], [], ["c1"]);
   expect((await listWatches(db(), "g1")).map((w) => w.channelId)).toEqual(["c2"]);
+  expect((await pendingPosts(db(), 10)).map((p) => p.channelId)).toEqual(["c2"]);
   expect(await targetState(other)).toBeUndefined();
-  expect(await targetState(T)).toBe("1.0.0");
+  expect(await targetState(T)).toBe("2.0.0");
 });
 
 describe("communities", () => {
