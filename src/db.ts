@@ -9,6 +9,7 @@ const DROP_ORPHANS = "DELETE FROM targets WHERE id NOT IN (SELECT target_id FROM
 
 export const modTargetId = (ref: ModRef) => `mod:${ref.namespace}-${ref.name}`;
 export const communityTargetId = (community: string) => `community:${community}`;
+export const updatesTargetId = (community: string) => `updates:${community}`;
 
 export const MAX_WATCHES_PER_GUILD = 25;
 
@@ -74,16 +75,17 @@ export async function touchTargets(db: D1Database, targetIds: string[], checkedA
     .run();
 }
 
-/** Saves new state and queues one post per watching channel, atomically. */
+/** Saves new state and queues each message for every watching channel, atomically. */
 export async function queueAnnouncement(
   db: D1Database,
   targetId: string,
   state: string,
   checkedAt: number,
-  body: object,
+  messages: object[],
 ): Promise<void> {
+  const insert = db.prepare("INSERT INTO outbox (channel_id, body) SELECT channel_id, ? FROM watches WHERE target_id = ? ORDER BY id");
   await db.batch([
-    db.prepare("INSERT INTO outbox (channel_id, body) SELECT channel_id, ? FROM watches WHERE target_id = ?").bind(JSON.stringify(body), targetId),
+    ...messages.map((m) => insert.bind(JSON.stringify(m), targetId)),
     db.prepare("UPDATE targets SET state = ?, checked_at = ? WHERE id = ?").bind(state, checkedAt, targetId),
   ]);
 }

@@ -1,6 +1,15 @@
-import { MAX_WATCHES_PER_GUILD, addWatch, communityTargetId, listWatches, modTargetId, removeWatch, searchCommunities } from "./db";
+import {
+  MAX_WATCHES_PER_GUILD,
+  addWatch,
+  communityTargetId,
+  listWatches,
+  modTargetId,
+  removeWatch,
+  searchCommunities,
+  updatesTargetId,
+} from "./db";
 import { editOriginal } from "./discord";
-import { fetchMod, fetchNewestMods, parseCommunity, parseModRef, type Http } from "./thunderstore";
+import { fetchMod, fetchNewestMods, fetchRecentlyUpdated, parseCommunity, parseModRef, type Http } from "./thunderstore";
 
 export type Deps = { db: D1Database; http: Http; appId: string; waitUntil: (p: Promise<unknown>) => void };
 
@@ -20,6 +29,7 @@ const HELP = [
   "",
   "`/watch mod <link or Author-ModName>`: post in this channel when the mod gets a new version, with its changelog",
   "`/watch community <name or link>`: post in this channel when a new mod appears in that community",
+  "`/watch updates <name or link>`: post in this channel whenever any mod in that community gets a new version, each with its changelog",
   "`/unwatch <watch>`: stop a watch",
   "`/watches`: list this server's watches",
   "",
@@ -49,7 +59,9 @@ export async function handleInteraction(raw: unknown, deps: Deps): Promise<objec
       const work =
         sub === "mod"
           ? watchMod(deps.db, deps.http, guildId, i.channel_id!, value("mod"))
-          : watchCommunity(deps.db, deps.http, guildId, i.channel_id!, value("community"));
+          : sub === "updates"
+            ? watchUpdates(deps.db, deps.http, guildId, i.channel_id!, value("community"))
+            : watchCommunity(deps.db, deps.http, guildId, i.channel_id!, value("community"));
       deps.waitUntil(
         work
           .catch(() => "Couldn't reach Thunderstore. Try again in a minute.")
@@ -88,6 +100,18 @@ async function watchCommunity(db: D1Database, http: Http, guildId: string, chann
   const added = await addWatch(db, guildId, channelId, communityTargetId(community), mods[0]?.createdAt ?? "");
   if (added !== "added") return added === "full" ? FULL : `Already watching ${community} here.`;
   return `Watching ${community} for new mods in this channel.`;
+}
+
+async function watchUpdates(db: D1Database, http: Http, guildId: string, channelId: string, input: string): Promise<string> {
+  const community = parseCommunity(input);
+  if (!community) return "Community not found.";
+  const mods = await fetchRecentlyUpdated(http, community);
+  if (!mods) return "Community not found.";
+  // Pinned mods are listed first regardless of date, so take the latest across all of them.
+  const latest = mods.reduce((max, m) => (!max || Date.parse(m.updatedAt!) > Date.parse(max) ? m.updatedAt! : max), "");
+  const added = await addWatch(db, guildId, channelId, updatesTargetId(community), latest);
+  if (added !== "added") return added === "full" ? FULL : `Already watching ${community} for updates here.`;
+  return `Watching ${community} for mod updates in this channel.`;
 }
 
 async function autocomplete(db: D1Database, guildId: string, options: Option[]) {

@@ -3,13 +3,14 @@
 Get a message in your Discord server when your favourite [Thunderstore](https://thunderstore.io) mods update, or when new mods are released for your game.
 
 - **Follow a mod:** get a post whenever it releases a new version, with the changelog for that version.
-- **Follow a whole community:** get a post whenever a brand-new mod appears for a game, such as every new Slip & Skid mod.
+- **Follow new mods in a community:** get a post whenever a brand-new mod appears for a game, such as every new Slip & Skid mod.
+- **Follow every update in a community:** get a post, with its changelog, whenever any mod for that game releases a new version.
 
 Works with every game on Thunderstore.
 
 ## What the posts look like
 
-When a mod you follow updates:
+When a mod you follow updates (from `/watch mod` or `/watch updates`):
 
 > **ExampleMod** has been updated to v1.3.0
 > ┃ **ExampleMod v1.3.0**
@@ -30,7 +31,7 @@ Each mod appears as a card with its icon, author and a link to its Thunderstore 
 
 1. [**Invite the bot**](https://discord.com/oauth2/authorize?client_id=1560970600569245821&scope=bot+applications.commands&permissions=19456). You need the **Manage Server** permission in the server you add it to.
 2. Go to the channel where you want the posts.
-3. Use `/watch mod` or `/watch community`.
+3. Use `/watch mod`, `/watch community` or `/watch updates`.
 
 That's it. Use `/help` at any time for a reminder.
 
@@ -40,13 +41,16 @@ That's it. Use `/help` at any time for a reminder.
 |---|---|---|
 | `/watch mod` | Post in this channel when a mod gets a new version | `/watch mod https://thunderstore.io/c/slip-skid/p/Kjoekjoe/MoreCards/` |
 | `/watch community` | Post in this channel when a new mod appears in a community | `/watch community slip-skid` |
+| `/watch updates` | Post in this channel whenever any mod in a community gets a new version, each with its changelog | `/watch updates slip-skid` |
 | `/unwatch` | Stop a watch. Start typing and pick from the list | `/unwatch` |
 | `/watches` | List everything this server is watching | `/watches` |
 | `/help` | Show how the bot works | `/help` |
 
 For `/watch mod`, you can paste the mod's Thunderstore link or type `Author-ModName` (for example `Kjoekjoe-MoreCards`).
 
-For `/watch community`, start typing the game's name and pick it from the list, or paste a Thunderstore link for that game.
+For `/watch community` and `/watch updates`, start typing the game's name and pick it from the list, or paste a Thunderstore link for that game.
+
+`/watch updates` doesn't post a mod's first release; use `/watch community` for new mods. If you watch a community with `/watch updates` and also watch one of its mods with `/watch mod` in the same channel, that mod's updates are posted twice.
 
 ## Good to know
 
@@ -71,6 +75,7 @@ For `/watch community`, start typing the game's name and pick it from the list, 
 ## Limitations
 
 - Community watches use the newest-first list that Thunderstore's own website uses. It isn't an officially documented API, so if Thunderstore changes it, community watches may stop working until the bot is updated. Mod watches use Thunderstore's documented API.
+- `/watch updates` handles up to 5 updated mods per community each check; any extra updates are posted over the following checks. Very busy communities, such as Lethal Company, get more updates than the bot can keep up with and will fall further and further behind, so this works best for small and medium communities.
 - One post shows at most 10 new mods. If a community gets more new mods than fit on the first page of Thunderstore's list within 5 minutes, the extras aren't announced.
 - On Cloudflare's free plan, each check can only do a limited amount of work. When lots of servers use the bot, each watch is checked less often than every 5 minutes, and a post for a widely watched mod can take a few runs to reach every channel.
 

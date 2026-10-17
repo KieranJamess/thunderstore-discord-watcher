@@ -11,12 +11,24 @@ import {
   type Target,
 } from "./db";
 import { modUpdateMessage, newModsMessage, postMessage } from "./discord";
-import { fetchChangelog, fetchCommunities, fetchMod, fetchNewestMods, isNewerVersion, parseModRef, type Http } from "./thunderstore";
+import {
+  fetchChangelog,
+  fetchCommunities,
+  fetchMod,
+  fetchNewestMods,
+  fetchRecentlyUpdated,
+  isNewerVersion,
+  parseModRef,
+  type Http,
+  type ListedMod,
+} from "./thunderstore";
 
 export type PollDeps = { db: D1Database; http: Http; token: string; now: number; budget?: number };
 
 const DAY = 24 * 3600_000;
 const MAX_EMBEDS = 10; // Discord's per-message limit
+const MAX_UPDATES_PER_CHECK = 5;
+const BRAND_NEW_MS = 60_000;
 const FINISH_COST = 3; // statements in finishPosts without gone channels
 const GONE_COST = 3; // extra statements once any channel is gone
 
@@ -50,20 +62,22 @@ export async function runPoll({ db: rawDb, http, token, now, budget = 45 }: Poll
     }
   }
 
-  // Check: per target up to 2 fetches (package + changelog) and 2 statements; 1 more for the final touch.
+  // Check. Mod/community targets: up to 2 fetches and 2 statements, plus 1 for the final touch.
+  // Updates targets: 1 listing fetch and 1 statement, plus 2 fetches and 1 statement per updated mod.
   const checkBudget = Math.floor(budget / 2);
   const touched: string[] = [];
   for (const target of await dueTargets(db, 50)) {
-    if (spent + 5 > checkBudget) break;
+    const maxUpdates = Math.min(MAX_UPDATES_PER_CHECK, Math.floor((checkBudget - spent - 3) / 3));
+    if (target.id.startsWith("updates:") ? maxUpdates < 1 : spent + 5 > checkBudget) break;
     let result: Result;
     try {
-      result = await check(counted, target);
+      result = await check(counted, target, maxUpdates);
     } catch {
       result = { kind: "unchanged" };
     }
     if (result.kind === "unchanged") touched.push(target.id);
     else if (result.kind === "state") await saveTarget(db, target.id, result.state, now);
-    else await queueAnnouncement(db, target.id, result.state, now, result.message);
+    else await queueAnnouncement(db, target.id, result.state, now, result.messages);
   }
   await touchTargets(db, touched, now);
 
@@ -87,10 +101,13 @@ export async function runPoll({ db: rawDb, http, token, now, budget = 45 }: Poll
   if (posts.length) await finishPosts(db, sent, failed, [...gone]);
 }
 
-type Result = { kind: "unchanged" } | { kind: "state"; state: string } | { kind: "announce"; state: string; message: object };
+type Result =
+  | { kind: "unchanged" }
+  | { kind: "state"; state: string }
+  | { kind: "announce"; state: string; messages: object[] };
 
 /** Fetches a target's current state and decides what to do with it. Throws on Thunderstore errors. */
-async function check(http: Http, target: Target): Promise<Result> {
+async function check(http: Http, target: Target, maxUpdates: number): Promise<Result> {
   const sep = target.id.indexOf(":");
   const [kind, ref] = [target.id.slice(0, sep), target.id.slice(sep + 1)];
 
@@ -99,8 +116,10 @@ async function check(http: Http, target: Target): Promise<Result> {
     if (!mod || mod.version === target.state) return { kind: "unchanged" };
     if (target.state && !isNewerVersion(mod.version, target.state)) return { kind: "state", state: mod.version };
     const changelog = await fetchChangelog(http, mod, mod.version);
-    return { kind: "announce", state: mod.version, message: modUpdateMessage(mod, changelog) };
+    return { kind: "announce", state: mod.version, messages: [modUpdateMessage(mod, changelog)] };
   }
+
+  if (kind === "updates") return checkUpdates(http, ref, target.state, maxUpdates);
 
   const mods = await fetchNewestMods(http, ref);
   if (!mods) return { kind: "unchanged" };
@@ -110,6 +129,30 @@ async function check(http: Http, target: Target): Promise<Result> {
   return {
     kind: "announce",
     state: fresh[0].createdAt,
-    message: newModsMessage(fresh.reverse(), ref),
+    messages: [newModsMessage(fresh.reverse(), ref)],
   };
+}
+
+/** Every mod in a community updated since `state`, oldest first, at most `max` per check. */
+async function checkUpdates(http: Http, community: string, state: string | null, max: number): Promise<Result> {
+  const mods = await fetchRecentlyUpdated(http, community);
+  if (!mods) return { kind: "unchanged" };
+  const since = state ? Date.parse(state) : -Infinity;
+  const at = (m: ListedMod) => Date.parse(m.updatedAt!);
+  const batch = mods
+    .filter((m) => at(m) > since)
+    .sort((a, b) => at(a) - at(b))
+    .slice(0, max);
+  if (!batch.length) return { kind: "unchanged" };
+
+  const messages: object[] = [];
+  for (const m of batch) {
+    // A mod's first release also bumps its update time; /watch community covers new mods.
+    if (at(m) - Date.parse(m.createdAt) < BRAND_NEW_MS) continue;
+    const mod = await fetchMod(http, m);
+    if (!mod) continue;
+    messages.push(modUpdateMessage(mod, await fetchChangelog(http, mod, mod.version)));
+  }
+  const newState = batch[batch.length - 1].updatedAt!;
+  return messages.length ? { kind: "announce", state: newState, messages } : { kind: "state", state: newState };
 }

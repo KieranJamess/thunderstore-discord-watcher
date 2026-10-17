@@ -17,6 +17,7 @@ export type ListedMod = {
   description: string;
   iconUrl: string;
   createdAt: string;
+  updatedAt?: string;
 };
 
 const BASE = "https://thunderstore.io";
@@ -128,8 +129,12 @@ export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null>
   };
 }
 
-/** Page 1 of the community listing, newest first, pinned packages removed. Undocumented endpoint. */
-export async function fetchNewestMods(http: Http, community: string): Promise<ListedMod[] | null> {
+/** Page 1 of the community listing (undocumented endpoint the website uses). Pinned packages always come first. */
+async function fetchListing(
+  http: Http,
+  community: string,
+  ordering: "newest" | "last-updated",
+): Promise<(ListedMod & { pinned: boolean })[] | null> {
   const d = await getJson<{
     results: {
       namespace: string;
@@ -137,19 +142,34 @@ export async function fetchNewestMods(http: Http, community: string): Promise<Li
       description: string;
       icon_url: string;
       datetime_created: string;
+      last_updated: string;
       is_pinned: boolean;
     }[];
-  }>(http, `${BASE}/api/cyberstorm/listing/${encodeURIComponent(community)}/?ordering=newest`);
+  }>(http, `${BASE}/api/cyberstorm/listing/${encodeURIComponent(community)}/?ordering=${ordering}`);
   if (!d) return null;
-  return d.results
-    .filter((r) => !r.is_pinned)
-    .map((r) => ({
-      namespace: r.namespace,
-      name: r.name,
-      description: r.description,
-      iconUrl: r.icon_url,
-      createdAt: r.datetime_created,
-    }));
+  return d.results.map((r) => ({
+    namespace: r.namespace,
+    name: r.name,
+    description: r.description,
+    iconUrl: r.icon_url,
+    createdAt: r.datetime_created,
+    updatedAt: r.last_updated,
+    pinned: r.is_pinned,
+  }));
+}
+
+const strip = ({ pinned: _, ...mod }: ListedMod & { pinned: boolean }): ListedMod => mod;
+
+/** Newest first, pinned packages removed. */
+export async function fetchNewestMods(http: Http, community: string): Promise<ListedMod[] | null> {
+  const mods = await fetchListing(http, community, "newest");
+  return mods && mods.filter((m) => !m.pinned).map(strip);
+}
+
+/** Most recently updated first (after pinned), pinned packages kept. */
+export async function fetchRecentlyUpdated(http: Http, community: string): Promise<ListedMod[] | null> {
+  const mods = await fetchListing(http, community, "last-updated");
+  return mods && mods.map(strip);
 }
 
 export async function fetchCommunities(http: Http): Promise<{ identifier: string; name: string }[]> {

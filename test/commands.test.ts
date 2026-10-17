@@ -189,3 +189,33 @@ it("/help explains the commands privately", async () => {
 it("/unwatch with typed text instead of a picked watch says not found", async () => {
   expect((await run(command("unwatch", [{ name: "watch", value: "abc" }]))).response).toEqual(reply("Watch not found."));
 });
+
+describe("/watch updates", () => {
+  const UPDATED = "https://thunderstore.io/api/cyberstorm/listing/slip-skid/?ordering=last-updated";
+  const watchUpdates = (c: string) =>
+    command("watch", [{ type: 1, name: "updates", options: [{ name: "community", value: c }] }]);
+  it("baselines on the most recent update, pinned included", async () => {
+    const { response, edited } = await run(watchUpdates("https://thunderstore.io/c/slip-skid/"), {
+      [UPDATED]: () =>
+        json({
+          results: [
+            { namespace: "A", name: "P", is_pinned: true, datetime_created: "x", last_updated: "2026-10-20T00:00:00Z" },
+            { namespace: "A", name: "B", is_pinned: false, datetime_created: "x", last_updated: "2026-10-17T00:00:00Z" },
+          ],
+        }),
+    });
+    expect(response).toEqual({ type: 5, data: { flags: 64 } });
+    expect(edited).toBe("Watching slip-skid for mod updates in this channel.");
+    const state = await env.DB.prepare("SELECT state FROM targets WHERE id = 'updates:slip-skid'").first("state");
+    expect(state).toBe("2026-10-20T00:00:00Z");
+  });
+  it("reports unknown communities", async () => {
+    expect((await run(watchUpdates("nope"), { [UPDATED.replace("slip-skid", "nope")]: () => json({}, 404) })).edited).toBe(
+      "Community not found.",
+    );
+  });
+});
+
+it("/help mentions /watch updates", async () => {
+  expect((await run(command("help"))).response.data.content).toContain("/watch updates");
+});

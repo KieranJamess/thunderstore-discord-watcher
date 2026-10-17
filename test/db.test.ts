@@ -70,7 +70,7 @@ it("finishPosts removes a gone channel's watches, its queued posts and orphaned 
   await addWatch(db(), "g1", "c1", T, "1.0.0");
   await addWatch(db(), "g1", "c1", other, "");
   await addWatch(db(), "g1", "c2", T, "1.0.0");
-  await queueAnnouncement(db(), T, "2.0.0", 1, { content: "x" });
+  await queueAnnouncement(db(), T, "2.0.0", 1, [{ content: "x" }]);
   await finishPosts(db(), [], [], ["c1"]);
   expect((await listWatches(db(), "g1")).map((w) => w.channelId)).toEqual(["c2"]);
   expect((await pendingPosts(db(), 10)).map((p) => p.channelId)).toEqual(["c2"]);
