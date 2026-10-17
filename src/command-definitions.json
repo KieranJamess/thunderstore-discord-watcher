@@ -16,7 +16,7 @@
         "name": "community",
         "description": "Announce brand-new mods in a community",
         "options": [
-          { "type": 3, "name": "community", "description": "Community, e.g. slip-skid", "required": true, "autocomplete": true }
+          { "type": 3, "name": "community", "description": "Community name or Thunderstore link, e.g. slip-skid", "required": true, "autocomplete": true }
         ]
       }
     ]

@@ -1,6 +1,6 @@
 import { MAX_WATCHES_PER_GUILD, addWatch, communityTargetId, listWatches, modTargetId, removeWatch, searchCommunities } from "./db";
 import { editOriginal } from "./discord";
-import { fetchMod, fetchNewestMods, parseModRef, type Http } from "./thunderstore";
+import { fetchMod, fetchNewestMods, parseCommunity, parseModRef, type Http } from "./thunderstore";
 
 export type Deps = { db: D1Database; http: Http; appId: string; waitUntil: (p: Promise<unknown>) => void };
 
@@ -68,8 +68,8 @@ async function watchMod(db: D1Database, http: Http, guildId: string, channelId: 
 }
 
 async function watchCommunity(db: D1Database, http: Http, guildId: string, channelId: string, input: string): Promise<string> {
-  const community = input.trim().toLowerCase();
-  if (!/^[a-z0-9-]+$/.test(community)) return "Community not found.";
+  const community = parseCommunity(input);
+  if (!community) return "Community not found.";
   const mods = await fetchNewestMods(http, community);
   if (!mods) return "Community not found.";
   const added = await addWatch(db, guildId, channelId, communityTargetId(community), mods[0]?.createdAt ?? "");

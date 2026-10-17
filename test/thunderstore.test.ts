@@ -5,6 +5,7 @@ import {
   fetchNewestMods,
   isNewerVersion,
   modUrl,
+  parseCommunity,
   parseModRef,
 } from "../src/thunderstore";
 import { fakeHttp, json } from "./helpers";
@@ -145,4 +146,19 @@ it("puts a timeout on Thunderstore requests", async () => {
   }) as typeof fetch;
   await fetchMod(http, { namespace: "A", name: "B" });
   expect(signal).toBeInstanceOf(AbortSignal);
+});
+
+describe("parseCommunity", () => {
+  it("accepts an identifier", () => {
+    expect(parseCommunity(" Slip-Skid ")).toBe("slip-skid");
+  });
+  it("accepts community URLs, including ones pointing at a mod", () => {
+    expect(parseCommunity("https://thunderstore.io/c/slip-skid/")).toBe("slip-skid");
+    expect(parseCommunity("https://thunderstore.io/c/slip-skid/p/A/B/?x=1")).toBe("slip-skid");
+  });
+  it("rejects anything else", () => {
+    expect(parseCommunity("https://thunderstore.io/package/A/B/")).toBeNull();
+    expect(parseCommunity("https://example.com/c/slip-skid/")).toBeNull();
+    expect(parseCommunity("slip skid")).toBeNull();
+  });
 });

@@ -49,6 +49,22 @@ export function parseModRef(input: string): ModRef | null {
   return { namespace: parts[0], name: parts[1] };
 }
 
+/** Accepts a community identifier or any thunderstore.io/c/<community>/... URL. */
+export function parseCommunity(input: string): string | null {
+  const text = input.trim().toLowerCase();
+  if (/^https?:\/\//.test(text)) {
+    let url: URL;
+    try {
+      url = new URL(text);
+    } catch {
+      return null;
+    }
+    const [c, community] = url.pathname.split("/").filter(Boolean);
+    return url.hostname === "thunderstore.io" && c === "c" && community && /^[a-z0-9-]+$/.test(community) ? community : null;
+  }
+  return /^[a-z0-9-]+$/.test(text) ? text : null;
+}
+
 export function isNewerVersion(candidate: string, current: string): boolean {
   const a = candidate.split(".").map(Number);
   const b = current.split(".").map(Number);

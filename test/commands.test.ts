@@ -92,6 +92,12 @@ describe("/watch community", () => {
     const state = await env.DB.prepare("SELECT state FROM targets WHERE id = 'community:slip-skid'").first("state");
     expect(state).toBe("2026-10-12T00:00:00Z");
   });
+  it("accepts a community link", async () => {
+    const { edited } = await run(watchCommunity("https://thunderstore.io/c/slip-skid/"), {
+      [LISTING]: () => json({ results: [] }),
+    });
+    expect(edited).toBe("Watching slip-skid for new mods in this channel.");
+  });
   it("reports unknown communities", async () => {
     expect((await run(watchCommunity("slip-skid"), { [LISTING]: () => json({}, 404) })).edited).toBe(
       "Community not found.",
