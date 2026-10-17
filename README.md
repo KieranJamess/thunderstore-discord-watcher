@@ -22,7 +22,7 @@ By default, only members with **Manage Server** can use `/watch` and `/unwatch`.
 
 ## Self-hosting
 
-You need Node.js 20+, a Cloudflare account and a Discord account.
+You need Node.js 22.9+, a Cloudflare account and a Discord account.
 
 1. **Create the Discord app.** In the [Developer Portal](https://discord.com/developers/applications), create an application and add a bot. Copy the **Application ID**, the **Public Key** and the bot **Token**.
 2. **Install.** Run `npm install`.
