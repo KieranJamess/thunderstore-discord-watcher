@@ -35,7 +35,7 @@ does this. Test target: the **Slip & Skid** community (`slip-skid`).
 - Any mod or community supported; Slip & Skid for testing.
 - Who can add/remove watches is controlled by **Discord permissions**.
 - **Free hosting**, using the owner's GitHub and Cloudflare accounts.
-- Code lives in `github.com/KieranJamess/thunderstore-discord-watcher`.
+- Code lives in a public GitHub repo so anyone can file issues.
 - No role pings yet.
 
 ## Architecture (my call, agreed in conversation)
