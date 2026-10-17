@@ -1,0 +1,12 @@
+name = "thunderstore-discord-watcher"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "thunderstore-watcher"
+database_id = "<set-after-wrangler-d1-create>"
+migrations_dir = "migrations"
