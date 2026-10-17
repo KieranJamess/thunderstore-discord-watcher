@@ -1,5 +1,6 @@
 import { handleInteraction } from "./commands";
 import { verifyDiscordRequest } from "./discord";
+import { runPoll } from "./poll";
 
 export interface Env {
   DB: D1Database;
@@ -26,5 +27,11 @@ export default {
       waitUntil: (p) => ctx.waitUntil(p),
     });
     return Response.json(response);
+  },
+
+  async scheduled(_controller, env, ctx) {
+    ctx.waitUntil(
+      runPoll({ db: env.DB, http: (input, init) => fetch(input, init), token: env.DISCORD_TOKEN, now: Date.now() }),
+    );
   },
 } satisfies ExportedHandler<Env>;
