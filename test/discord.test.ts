@@ -33,7 +33,7 @@ describe("postMessage", () => {
     const { http, calls } = fakeHttp({ [URL]: () => json({ id: "1" }) });
     expect(await postMessage(http, "t", "123", { content: "hi" })).toBe("ok");
     expect(calls[0].headers.get("authorization")).toBe("Bot t");
-    expect(JSON.parse(calls[0].body)).toEqual({ content: "hi" });
+    expect(JSON.parse(calls[0].body)).toMatchObject({ content: "hi" });
   });
   it("reports gone on 403/404 and error otherwise", async () => {
     for (const [status, want] of [[403, "gone"], [404, "gone"], [500, "error"]] as const) {
@@ -71,4 +71,10 @@ describe("messages", () => {
     expect(m.embeds.map((e) => e.title)).toEqual(["B", "C"]);
     expect(m.embeds[0]).toMatchObject({ url: "https://thunderstore.io/package/A/B/", author: { name: "A" } });
   });
+});
+
+it("never lets a post ping anyone", async () => {
+  const { http, calls } = fakeHttp({ "POST https://discord.com/api/v10/channels/1/messages": () => json({}) });
+  await postMessage(http, "t", "1", { content: "@everyone" });
+  expect(JSON.parse(calls[0].body).allowed_mentions).toEqual({ parse: [] });
 });

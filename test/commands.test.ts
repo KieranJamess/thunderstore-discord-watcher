@@ -185,3 +185,7 @@ it("/help explains the commands privately", async () => {
   for (const cmd of ["/watch mod", "/watch community", "/unwatch", "/watches"]) expect(response.data.content).toContain(cmd);
   expect(response.data.content).toContain("every 5 minutes");
 });
+
+it("/unwatch with typed text instead of a picked watch says not found", async () => {
+  expect((await run(command("unwatch", [{ name: "watch", value: "abc" }]))).response).toEqual(reply("Watch not found."));
+});

@@ -212,3 +212,12 @@ describe("fetchChangelog", () => {
     expect(await fetchChangelog(http, { namespace: "A", name: "B" }, "0.4.0")).toBeNull();
   });
 });
+
+it("fetchCommunities won't follow pagination links off thunderstore.io", async () => {
+  const first = "https://thunderstore.io/api/experimental/community/";
+  const { http, calls } = fakeHttp({
+    [first]: () => json({ pagination: { next_link: "https://evil.example/steal" }, results: [{ identifier: "a", name: "A" }] }),
+  });
+  await expect(fetchCommunities(http)).rejects.toThrow();
+  expect(calls.map((c) => c.url)).toEqual([first]);
+});

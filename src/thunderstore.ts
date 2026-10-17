@@ -163,6 +163,7 @@ export async function fetchCommunities(http: Http): Promise<{ identifier: string
     if (!d) throw new Error("Thunderstore community list missing");
     out.push(...d.results.map(({ identifier, name }) => ({ identifier, name })));
     url = d.pagination.next_link;
+    if (url && new URL(url).origin !== BASE) throw new Error(`Unexpected pagination link ${url}`);
   }
   return out;
 }

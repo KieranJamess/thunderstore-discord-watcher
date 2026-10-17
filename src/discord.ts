@@ -32,7 +32,8 @@ export async function postMessage(http: Http, token: string, channelId: string, 
   const res = await http(`${API}/channels/${channelId}/messages`, {
     method: "POST",
     headers: { authorization: `Bot ${token}`, "content-type": "application/json" },
-    body: JSON.stringify(body),
+    // Announcements carry third-party text, so never let them ping anyone.
+    body: JSON.stringify({ ...body, allowed_mentions: { parse: [] } }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (res.ok) return "ok";
