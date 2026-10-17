@@ -15,6 +15,17 @@ type Interaction = {
 
 const EPHEMERAL = 64;
 const FULL = `This server already has ${MAX_WATCHES_PER_GUILD} watches. Remove one with /unwatch first.`;
+const HELP = [
+  "**Thunderstore Watcher** posts to a channel when something changes on Thunderstore.",
+  "",
+  "`/watch mod <link or Author-ModName>`: post in this channel when the mod gets a new version, with its changelog",
+  "`/watch community <name or link>`: post in this channel when a new mod appears in that community",
+  "`/unwatch <watch>`: stop a watch",
+  "`/watches`: list this server's watches",
+  "",
+  "Checks run every 5 minutes. Adding a watch never posts what already exists, only changes after that.",
+  `Each server can have up to ${MAX_WATCHES_PER_GUILD} watches. By default only members with Manage Server can add or remove them; admins can change that in Server Settings > Integrations.`,
+].join("\n");
 const reply = (content: string) => ({ type: 4, data: { content, flags: EPHEMERAL } });
 
 /** Flattens one level of subcommand: returns [subcommand name | null, leaf options]. */
@@ -48,6 +59,8 @@ export async function handleInteraction(raw: unknown, deps: Deps): Promise<objec
     }
     case "unwatch":
       return reply((await removeWatch(deps.db, guildId, Number(value("watch")))) ? "Stopped watching." : "Watch not found.");
+    case "help":
+      return reply(HELP);
     case "watches": {
       const watches = await listWatches(deps.db, guildId);
       if (!watches.length) return reply("No watches in this server.");

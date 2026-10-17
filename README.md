@@ -15,6 +15,7 @@ It runs as a single Cloudflare Worker on the free plan. It checks Thunderstore e
 | `/watch community <community>` | Announce new mods in a community in this channel (autocompletes) |
 | `/unwatch <watch>` | Stop a watch (autocompletes from this server's watches) |
 | `/watches` | List this server's watches |
+| `/help` | Explain the commands and how the bot behaves |
 
 When you add a watch, the bot records what already exists and only posts changes after that.
 

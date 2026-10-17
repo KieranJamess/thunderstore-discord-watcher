@@ -177,3 +177,11 @@ it("caps each server at 25 watches", async () => {
   expect(edited).toBe("This server already has 25 watches. Remove one with /unwatch first.");
   expect(await listWatches(env.DB, "g1")).toHaveLength(25);
 });
+
+it("/help explains the commands privately", async () => {
+  const { response } = await run(command("help"));
+  expect(response.type).toBe(4);
+  expect(response.data.flags).toBe(64);
+  for (const cmd of ["/watch mod", "/watch community", "/unwatch", "/watches"]) expect(response.data.content).toContain(cmd);
+  expect(response.data.content).toContain("every 5 minutes");
+});

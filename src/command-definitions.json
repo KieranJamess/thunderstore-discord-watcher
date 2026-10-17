@@ -32,5 +32,10 @@
     "name": "watches",
     "description": "List this server's Thunderstore watches",
     "contexts": [0]
+  },
+  {
+    "name": "help",
+    "description": "How to use the Thunderstore watcher",
+    "contexts": [0]
   }
 ]
