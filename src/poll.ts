@@ -10,8 +10,8 @@ import {
   touchTargets,
   type Target,
 } from "./db";
-import { modUpdateEmbed, newModEmbed, postMessage } from "./discord";
-import { fetchCommunities, fetchMod, fetchNewestMods, isNewerVersion, parseModRef, type Http } from "./thunderstore";
+import { modUpdateMessage, newModsMessage, postMessage } from "./discord";
+import { fetchChangelog, fetchCommunities, fetchMod, fetchNewestMods, isNewerVersion, parseModRef, type Http } from "./thunderstore";
 
 export type PollDeps = { db: D1Database; http: Http; token: string; now: number; budget?: number };
 
@@ -50,11 +50,11 @@ export async function runPoll({ db: rawDb, http, token, now, budget = 45 }: Poll
     }
   }
 
-  // Check: per target 1 fetch + at most 2 statements; 1 more for the final touch.
+  // Check: per target up to 2 fetches (package + changelog) and 2 statements; 1 more for the final touch.
   const checkBudget = Math.floor(budget / 2);
   const touched: string[] = [];
   for (const target of await dueTargets(db, 50)) {
-    if (spent + 4 > checkBudget) break;
+    if (spent + 5 > checkBudget) break;
     let result: Result;
     try {
       result = await check(counted, target);
@@ -98,7 +98,8 @@ async function check(http: Http, target: Target): Promise<Result> {
     const mod = await fetchMod(http, parseModRef(ref)!);
     if (!mod || mod.version === target.state) return { kind: "unchanged" };
     if (target.state && !isNewerVersion(mod.version, target.state)) return { kind: "state", state: mod.version };
-    return { kind: "announce", state: mod.version, message: { embeds: [modUpdateEmbed(mod)] } };
+    const changelog = await fetchChangelog(http, mod, mod.version);
+    return { kind: "announce", state: mod.version, message: modUpdateMessage(mod, changelog) };
   }
 
   const mods = await fetchNewestMods(http, ref);
@@ -109,6 +110,6 @@ async function check(http: Http, target: Target): Promise<Result> {
   return {
     kind: "announce",
     state: fresh[0].createdAt,
-    message: { embeds: fresh.reverse().map((m) => newModEmbed(m, ref)) },
+    message: newModsMessage(fresh.reverse(), ref),
   };
 }

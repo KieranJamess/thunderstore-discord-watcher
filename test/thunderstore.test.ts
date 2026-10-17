@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  changelogSection,
+  fetchChangelog,
   fetchCommunities,
   fetchMod,
   fetchNewestMods,
@@ -160,5 +162,53 @@ describe("parseCommunity", () => {
     expect(parseCommunity("https://thunderstore.io/package/A/B/")).toBeNull();
     expect(parseCommunity("https://example.com/c/slip-skid/")).toBeNull();
     expect(parseCommunity("slip skid")).toBeNull();
+  });
+});
+
+const CHANGELOG = `# Changelog
+
+## [0.4.0](https://github.com/x/compare/a...b) (2026-10-17)
+
+### Features
+
+* new cards
+
+## [0.3.5](https://github.com/x/compare/c...d) (2026-10-13)
+
+### Bug Fixes
+
+* old fix
+`;
+
+describe("changelogSection", () => {
+  it("returns just the section for that version", () => {
+    expect(changelogSection(CHANGELOG, "0.4.0")).toBe("### Features\n\n* new cards");
+    expect(changelogSection(CHANGELOG, "0.3.5")).toBe("### Bug Fixes\n\n* old fix");
+  });
+  it("matches plain and v-prefixed headings", () => {
+    expect(changelogSection("## v1.2.0\n- a\n## 1.1.0\n- b", "1.2.0")).toBe("- a");
+    expect(changelogSection("# 1.2.0\n- a", "1.2.0")).toBe("- a");
+  });
+  it("doesn't confuse 1.2.0 with 1.2.01", () => {
+    expect(changelogSection("## 1.2.01\n- a", "1.2.0")).toBeNull();
+  });
+  it("returns null when the version isn't there", () => {
+    expect(changelogSection(CHANGELOG, "9.9.9")).toBeNull();
+  });
+});
+
+describe("fetchChangelog", () => {
+  const URL = "https://thunderstore.io/api/experimental/package/A/B/0.4.0/changelog/";
+  it("returns the new version's section", async () => {
+    const { http } = fakeHttp({ [URL]: () => json({ markdown: CHANGELOG }) });
+    expect(await fetchChangelog(http, { namespace: "A", name: "B" }, "0.4.0")).toBe("### Features\n\n* new cards");
+  });
+  it("returns null when there's no changelog", async () => {
+    const { http } = fakeHttp({ [URL]: () => json({ markdown: null }) });
+    expect(await fetchChangelog(http, { namespace: "A", name: "B" }, "0.4.0")).toBeNull();
+  });
+  it("returns null instead of throwing on errors", async () => {
+    const { http } = fakeHttp({ [URL]: () => json({}, 500) });
+    expect(await fetchChangelog(http, { namespace: "A", name: "B" }, "0.4.0")).toBeNull();
   });
 });

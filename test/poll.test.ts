@@ -9,6 +9,7 @@ const MOD = modTargetId({ namespace: "A", name: "B" });
 const COMMUNITY = communityTargetId("slip-skid");
 const MOD_API = "https://thunderstore.io/api/experimental/package/A/B/";
 const LISTING = "https://thunderstore.io/api/cyberstorm/listing/slip-skid/?ordering=newest";
+const changelog = (v: string) => `https://thunderstore.io/api/experimental/package/A/B/${v}/changelog/`;
 const post = (channel: string) => `POST https://discord.com/api/v10/channels/${channel}/messages`;
 
 const modBody = (version: string) => ({
@@ -44,10 +45,15 @@ beforeEach(async () => {
 describe("mod watches", () => {
   it("announces a newer version once", async () => {
     await addWatch(env.DB, "g1", "c1", MOD, "1.0.0");
-    const { http } = fakeHttp({ [MOD_API]: () => json(modBody("1.0.1")), ...recordPost("c1") });
+    const { http } = fakeHttp({
+      [MOD_API]: () => json(modBody("1.0.1")),
+      [changelog("1.0.1")]: () => json({ markdown: "## 1.0.1\n* fixed things\n## 1.0.0\n* first" }),
+      ...recordPost("c1"),
+    });
     await poll(http);
     expect(posted.c1).toHaveLength(1);
-    expect(posted.c1[0].embeds[0].title).toBe("B updated to v1.0.1");
+    expect(posted.c1[0].content).toBe("**B** has been updated to v1.0.1");
+    expect(posted.c1[0].embeds[0].description).toBe("* fixed things");
     expect(await state(MOD)).toEqual({ id: MOD, state: "1.0.1", checkedAt: NOW });
     await poll(http);
     expect(posted.c1).toHaveLength(1);
@@ -86,10 +92,8 @@ describe("community watches", () => {
     });
     await poll(http);
     expect(posted.c1).toHaveLength(1);
-    expect(posted.c1[0].embeds.map((e: any) => e.title)).toEqual([
-      "New mod in slip-skid: New",
-      "New mod in slip-skid: Newer",
-    ]);
+    expect(posted.c1[0].content).toBe("New mods found for slip-skid:");
+    expect(posted.c1[0].embeds.map((e: any) => e.title)).toEqual(["New", "Newer"]);
     expect((await state(COMMUNITY))!.state).toBe("2026-10-12T00:00:00Z");
   });
   it("announces the first mod of a community that was empty", async () => {
@@ -114,7 +118,7 @@ describe("community watches", () => {
     await poll(http);
     const titles = posted.c1[0].embeds.map((e: any) => e.title);
     expect(titles).toHaveLength(10);
-    expect(titles[9]).toBe("New mod in slip-skid: M11");
+    expect(titles[9]).toBe("M11");
   });
 });
 
@@ -148,7 +152,7 @@ it("stops checking when the budget runs out, leaving the rest for next run", asy
     [MOD_API]: () => json(modBody("1.0.0")),
     [LISTING]: () => json({ results: [] }),
   });
-  await poll(http, 12);
+  await poll(http, 14);
   expect(calls).toHaveLength(1);
   expect((await dueTargets(env.DB, 50)).filter((t) => t.checkedAt === 0)).toHaveLength(1);
 });

@@ -48,20 +48,37 @@ export async function editOriginal(http: Http, appId: string, interactionToken: 
   });
 }
 
-export const modUpdateEmbed = (m: ModInfo) => ({
-  title: `${m.name} updated to v${m.version}`,
-  url: m.url,
-  author: { name: m.namespace },
-  description: m.description,
-  thumbnail: { url: m.iconUrl },
-  color: COLOR,
+const MAX_CHANGELOG = 1500;
+
+function trimChangelog(changelog: string, url: string): string {
+  if (changelog.length <= MAX_CHANGELOG) return changelog;
+  const cut = changelog.slice(0, MAX_CHANGELOG);
+  const atLine = cut.lastIndexOf("\n");
+  return `${atLine > 0 ? cut.slice(0, atLine) : cut}\n…\n[Full changelog on Thunderstore](${url})`;
+}
+
+export const modUpdateMessage = (m: ModInfo, changelog: string | null) => ({
+  content: `**${m.name}** has been updated to v${m.version}`,
+  embeds: [
+    {
+      title: `${m.name} v${m.version}`,
+      url: m.url,
+      author: { name: m.namespace },
+      description: changelog ? trimChangelog(changelog, m.url) : m.description,
+      thumbnail: { url: m.iconUrl },
+      color: COLOR,
+    },
+  ],
 });
 
-export const newModEmbed = (m: ListedMod, community: string) => ({
-  title: `New mod in ${community}: ${m.name}`,
-  url: modUrl(m),
-  author: { name: m.namespace },
-  description: m.description,
-  thumbnail: { url: m.iconUrl },
-  color: COLOR,
+export const newModsMessage = (mods: ListedMod[], community: string) => ({
+  content: `New mods found for ${community}:`,
+  embeds: mods.map((m) => ({
+    title: m.name,
+    url: modUrl(m),
+    author: { name: m.namespace },
+    description: m.description,
+    thumbnail: { url: m.iconUrl },
+    color: COLOR,
+  })),
 });

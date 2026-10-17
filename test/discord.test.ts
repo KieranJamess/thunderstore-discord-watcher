@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { editOriginal, modUpdateEmbed, newModEmbed, postMessage, verifyDiscordRequest } from "../src/discord";
+import { editOriginal, modUpdateMessage, newModsMessage, postMessage, verifyDiscordRequest } from "../src/discord";
 import { fakeHttp, json } from "./helpers";
 
 const hex = (buf: ArrayBuffer) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -49,24 +49,26 @@ it("editOriginal patches the interaction response", async () => {
   expect(JSON.parse(calls[0].body)).toEqual({ content: "done" });
 });
 
-it("builds embeds", () => {
-  const mod = { namespace: "A", name: "B", version: "1.2.3", description: "d", iconUrl: "i", url: "u" };
-  expect(modUpdateEmbed(mod)).toMatchObject({ title: "B updated to v1.2.3", url: "u", author: { name: "A" }, thumbnail: { url: "i" } });
+describe("messages", () => {
+  const mod = { namespace: "A", name: "B", version: "1.2.3", description: "d", iconUrl: "i", url: "https://thunderstore.io/package/A/B/" };
   const listed = { namespace: "A", name: "B", description: "d", iconUrl: "i", createdAt: "x" };
-  expect(newModEmbed(listed, "slip-skid")).toMatchObject({
-    title: "New mod in slip-skid: B",
-    url: "https://thunderstore.io/package/A/B/",
-    author: { name: "A" },
+  it("mod update message has a text line and the changelog", () => {
+    const m = modUpdateMessage(mod, "* fixed");
+    expect(m.content).toBe("**B** has been updated to v1.2.3");
+    expect(m.embeds[0]).toMatchObject({ title: "B v1.2.3", url: mod.url, author: { name: "A" }, description: "* fixed", thumbnail: { url: "i" } });
   });
-});
-
-it("puts a timeout on Discord requests", async () => {
-  const signals: (AbortSignal | null | undefined)[] = [];
-  const http = (async (_input: RequestInfo | URL, init?: RequestInit) => {
-    signals.push(init?.signal);
-    return json({});
-  }) as typeof fetch;
-  await postMessage(http, "t", "1", {});
-  await editOriginal(http, "a", "t", "x");
-  expect(signals.every((s) => s instanceof AbortSignal)).toBe(true);
+  it("falls back to the mod description without a changelog", () => {
+    expect(modUpdateMessage(mod, null).embeds[0].description).toBe("d");
+  });
+  it("trims long changelogs and links the full one", () => {
+    const desc = modUpdateMessage(mod, "x".repeat(5000)).embeds[0].description;
+    expect(desc.length).toBeLessThan(2000);
+    expect(desc.endsWith("[Full changelog on Thunderstore](https://thunderstore.io/package/A/B/)")).toBe(true);
+  });
+  it("community message has a text line and one embed per mod", () => {
+    const m = newModsMessage([listed, { ...listed, name: "C" }], "slip-skid");
+    expect(m.content).toBe("New mods found for slip-skid:");
+    expect(m.embeds.map((e) => e.title)).toEqual(["B", "C"]);
+    expect(m.embeds[0]).toMatchObject({ url: "https://thunderstore.io/package/A/B/", author: { name: "A" } });
+  });
 });

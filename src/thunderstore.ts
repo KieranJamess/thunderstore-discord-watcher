@@ -85,6 +85,31 @@ async function getJson<T>(http: Http, url: string): Promise<T | null> {
   return res.json<T>();
 }
 
+/** The body under the heading for `version` (e.g. "## [1.2.0](...)" or "# v1.2.0"), up to the next heading of the same or higher level. */
+export function changelogSection(markdown: string, version: string): string | null {
+  const lines = markdown.split(/\r?\n/);
+  const wanted = new RegExp(`(^|[^0-9.])v?${version.replace(/\./g, "\\.")}(?![0-9])`);
+  const start = lines.findIndex((l) => /^#{1,6}\s/.test(l) && wanted.test(l));
+  if (start < 0) return null;
+  const level = lines[start].match(/^#+/)![0].length;
+  const end = lines.findIndex((l, i) => i > start && new RegExp(`^#{1,${level}}\\s`).test(l));
+  const body = lines.slice(start + 1, end < 0 ? undefined : end).join("\n").trim();
+  return body || null;
+}
+
+/** The changelog section for one version; null if missing or Thunderstore fails, since it's optional. */
+export async function fetchChangelog(http: Http, ref: ModRef, version: string): Promise<string | null> {
+  try {
+    const d = await getJson<{ markdown: string | null }>(
+      http,
+      `${BASE}/api/experimental/package/${ref.namespace}/${ref.name}/${version}/changelog/`,
+    );
+    return d?.markdown ? changelogSection(d.markdown, version) : null;
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null> {
   const d = await getJson<{
     namespace: string;
