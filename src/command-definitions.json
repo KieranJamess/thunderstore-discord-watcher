@@ -1,0 +1,36 @@
+[
+  {
+    "name": "watch",
+    "description": "Announce Thunderstore changes in this channel",
+    "default_member_permissions": "32",
+    "contexts": [0],
+    "options": [
+      {
+        "type": 1,
+        "name": "mod",
+        "description": "Announce new versions of one mod",
+        "options": [{ "type": 3, "name": "mod", "description": "Thunderstore link or Author-ModName", "required": true }]
+      },
+      {
+        "type": 1,
+        "name": "community",
+        "description": "Announce brand-new mods in a community",
+        "options": [
+          { "type": 3, "name": "community", "description": "Community, e.g. slip-skid", "required": true, "autocomplete": true }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "unwatch",
+    "description": "Stop a watch in this server",
+    "default_member_permissions": "32",
+    "contexts": [0],
+    "options": [{ "type": 3, "name": "watch", "description": "The watch to remove", "required": true, "autocomplete": true }]
+  },
+  {
+    "name": "watches",
+    "description": "List this server's Thunderstore watches",
+    "contexts": [0]
+  }
+]
