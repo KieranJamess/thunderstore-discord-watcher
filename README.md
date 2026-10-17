@@ -50,7 +50,7 @@ For `/watch mod`, you can paste the mod's Thunderstore link or type `Author-ModN
 
 For `/watch community` and `/watch updates`, start typing the game's name and pick it from the list, or paste a Thunderstore link for that game.
 
-`/watch updates` doesn't post a mod's first release; use `/watch community` for new mods. If you watch a community with `/watch updates` and also watch one of its mods with `/watch mod` in the same channel, that mod's updates are posted twice.
+`/watch updates` covers every mod in the community, including mods released after you set up the watch. It doesn't post a mod's first release (use `/watch community` for that), but every version after it is posted. If you watch a community with `/watch updates` and also watch one of its mods with `/watch mod` in the same channel, that mod's updates are posted twice.
 
 ## Good to know
 
