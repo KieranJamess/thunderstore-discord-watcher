@@ -2,7 +2,10 @@
   "name": "thunderstore-discord-watcher",
   "version": "1.0.0",
   "scripts": {
-    "test": "vitest run"
+    "test": "vitest run",
+    "deploy": "wrangler deploy",
+    "register": "node --env-file-if-exists=.dev.vars scripts/register.mjs",
+    "migrate": "wrangler d1 migrations apply thunderstore-watcher --remote"
   },
   "type": "module",
   "devDependencies": {
