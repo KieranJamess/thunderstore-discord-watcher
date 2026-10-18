@@ -9,6 +9,7 @@ export type ModInfo = {
   description: string;
   iconUrl: string;
   url: string;
+  community?: string;
 };
 
 export type ListedMod = {
@@ -117,6 +118,7 @@ export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null>
     name: string;
     package_url: string;
     latest: { version_number: string; description: string; icon: string };
+    community_listings?: { community: string }[];
   }>(http, `${BASE}/api/experimental/package/${ref.namespace}/${ref.name}/`);
   if (!d) return null;
   return {
@@ -126,6 +128,8 @@ export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null>
     description: d.latest.description,
     iconUrl: d.latest.icon,
     url: d.package_url,
+    // ponytail: first listing only; a mod in several communities shows one of them.
+    community: d.community_listings?.[0]?.community,
   };
 }
 

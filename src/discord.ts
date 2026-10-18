@@ -59,7 +59,7 @@ function trimChangelog(changelog: string, url: string): string {
 }
 
 export const modUpdateMessage = (m: ModInfo, changelog: string | null) => ({
-  content: `**${m.name}** has been updated to v${m.version}`,
+  content: `**${m.community ? `${m.community}/` : ""}${m.name}** has been updated to v${m.version}`,
   embeds: [
     {
       title: `${m.name} v${m.version}`,

@@ -55,6 +55,7 @@ describe("messages", () => {
   it("mod update message has a text line and the changelog", () => {
     const m = modUpdateMessage(mod, "* fixed");
     expect(m.content).toBe("**B** has been updated to v1.2.3");
+    expect(modUpdateMessage({ ...mod, community: "slip-skid" }, null).content).toBe("**slip-skid/B** has been updated to v1.2.3");
     expect(m.embeds[0]).toMatchObject({ title: "B v1.2.3", url: mod.url, author: { name: "A" }, description: "* fixed", thumbnail: { url: "i" } });
   });
   it("falls back to the mod description without a changelog", () => {

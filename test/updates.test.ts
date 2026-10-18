@@ -26,6 +26,7 @@ const modBody = (name: string, version: string) => ({
   name,
   package_url: `https://thunderstore.io/package/A/${name}/`,
   latest: { version_number: version, description: "d", icon: "i" },
+  community_listings: [{ community: "slip-skid" }],
 });
 
 let posted: any[] = [];
@@ -75,8 +76,8 @@ describe("updates watches", () => {
     });
     await poll(http);
     expect(posted.map((p) => p.content)).toEqual([
-      "**First** has been updated to v1.1.0",
-      "**Second** has been updated to v2.0.0",
+      "**slip-skid/First** has been updated to v1.1.0",
+      "**slip-skid/Second** has been updated to v2.0.0",
     ]);
     expect(posted[0].embeds[0].description).toBe("* first fix");
     expect(await state()).toBe("2026-10-03T00:00:00Z");
@@ -91,7 +92,7 @@ describe("updates watches", () => {
       ...recordPost,
     });
     await poll(http);
-    expect(posted.map((p) => p.content)).toEqual(["**Pinned** has been updated to v6.0.0"]);
+    expect(posted.map((p) => p.content)).toEqual(["**slip-skid/Pinned** has been updated to v6.0.0"]);
   });
 
   it("skips brand-new mods but moves past them", async () => {
