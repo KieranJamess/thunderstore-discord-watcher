@@ -75,17 +75,23 @@ export async function touchTargets(db: D1Database, targetIds: string[], checkedA
     .run();
 }
 
+/** A message to queue; channels that also watch `coveredBy` are skipped, since that watch posts it too. */
+export type Announcement = { body: object; coveredBy?: string };
+
 /** Saves new state and queues each message for every watching channel, atomically. */
 export async function queueAnnouncement(
   db: D1Database,
   targetId: string,
   state: string,
   checkedAt: number,
-  messages: object[],
+  messages: Announcement[],
 ): Promise<void> {
-  const insert = db.prepare("INSERT INTO outbox (channel_id, body) SELECT channel_id, ? FROM watches WHERE target_id = ? ORDER BY id");
+  const insert = db.prepare(
+    `INSERT INTO outbox (channel_id, body) SELECT channel_id, ?1 FROM watches w WHERE target_id = ?2
+     AND NOT EXISTS (SELECT 1 FROM watches c WHERE c.channel_id = w.channel_id AND c.target_id = ?3) ORDER BY id`,
+  );
   await db.batch([
-    ...messages.map((m) => insert.bind(JSON.stringify(m), targetId)),
+    ...messages.map((m) => insert.bind(JSON.stringify(m.body), targetId, m.coveredBy ?? null)),
     db.prepare("UPDATE targets SET state = ?, checked_at = ? WHERE id = ?").bind(state, checkedAt, targetId),
   ]);
 }

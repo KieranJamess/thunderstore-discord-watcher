@@ -6,8 +6,10 @@ import {
   queueAnnouncement,
   replaceCommunities,
   saveTarget,
+  modTargetId,
   setMeta,
   touchTargets,
+  type Announcement,
   type Target,
 } from "./db";
 import { modUpdateMessage, newModsMessage, postMessage } from "./discord";
@@ -104,7 +106,7 @@ export async function runPoll({ db: rawDb, http, token, now, budget = 45 }: Poll
 type Result =
   | { kind: "unchanged" }
   | { kind: "state"; state: string }
-  | { kind: "announce"; state: string; messages: object[] };
+  | { kind: "announce"; state: string; messages: Announcement[] };
 
 /** Fetches a target's current state and decides what to do with it. Throws on Thunderstore errors. */
 async function check(http: Http, target: Target, maxUpdates: number): Promise<Result> {
@@ -116,7 +118,7 @@ async function check(http: Http, target: Target, maxUpdates: number): Promise<Re
     if (!mod || mod.version === target.state) return { kind: "unchanged" };
     if (target.state && !isNewerVersion(mod.version, target.state)) return { kind: "state", state: mod.version };
     const changelog = await fetchChangelog(http, mod, mod.version);
-    return { kind: "announce", state: mod.version, messages: [modUpdateMessage(mod, changelog)] };
+    return { kind: "announce", state: mod.version, messages: [{ body: modUpdateMessage(mod, changelog) }] };
   }
 
   if (kind === "updates") return checkUpdates(http, ref, target.state, maxUpdates);
@@ -129,7 +131,7 @@ async function check(http: Http, target: Target, maxUpdates: number): Promise<Re
   return {
     kind: "announce",
     state: fresh[0].createdAt,
-    messages: [newModsMessage(fresh.reverse(), ref)],
+    messages: [{ body: newModsMessage(fresh.reverse(), ref) }],
   };
 }
 
@@ -145,13 +147,14 @@ async function checkUpdates(http: Http, community: string, state: string | null,
     .slice(0, max);
   if (!batch.length) return { kind: "unchanged" };
 
-  const messages: object[] = [];
+  const messages: Announcement[] = [];
   for (const m of batch) {
     // A mod's first release also bumps its update time; /watch community covers new mods.
     if (at(m) - Date.parse(m.createdAt) < BRAND_NEW_MS) continue;
     const mod = await fetchMod(http, m);
     if (!mod) continue;
-    messages.push(modUpdateMessage(mod, await fetchChangelog(http, mod, mod.version)));
+    const body = modUpdateMessage(mod, await fetchChangelog(http, mod, mod.version));
+    messages.push({ body, coveredBy: modTargetId(m) });
   }
   const newState = batch[batch.length - 1].updatedAt!;
   return messages.length ? { kind: "announce", state: newState, messages } : { kind: "state", state: newState };

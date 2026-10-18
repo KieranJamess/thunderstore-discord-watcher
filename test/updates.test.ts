@@ -1,6 +1,6 @@
 import { env } from "cloudflare:test";
 import { beforeEach, describe, expect, it } from "vitest";
-import { addWatch, dueTargets, setMeta, updatesTargetId } from "../src/db";
+import { addWatch, dueTargets, modTargetId, setMeta, updatesTargetId } from "../src/db";
 import { runPoll } from "../src/poll";
 import { fetchRecentlyUpdated } from "../src/thunderstore";
 import { fakeHttp, json, type Call } from "./helpers";
@@ -143,5 +143,21 @@ describe("updates watches", () => {
     await poll(http);
     expect(posted).toEqual([]);
     expect(await state()).toBe("2026-10-01T00:00:00Z");
+  });
+
+  it("posts once in a channel that also watches the updated mod", async () => {
+    await addWatch(env.DB, "g1", "c1", TARGET, "2026-10-01T00:00:00Z");
+    await addWatch(env.DB, "g1", "c1", modTargetId({ namespace: "A", name: "B" }), "1.0.0");
+    await addWatch(env.DB, "g1", "c2", TARGET, "2026-10-01T00:00:00Z");
+    const channels: string[] = [];
+    const { http } = fakeHttp({
+      [LISTING]: () => json({ results: [row("B", "2026-10-02T00:00:00Z")] }),
+      [pkg("B")]: () => json(modBody("B", "1.1.0")),
+      [changelog("B", "1.1.0")]: () => json({}, 404),
+      [POST]: () => (channels.push("c1"), json({})),
+      [POST.replace("c1", "c2")]: () => (channels.push("c2"), json({})),
+    });
+    await poll(http);
+    expect(channels.sort()).toEqual(["c1", "c2"]);
   });
 });
