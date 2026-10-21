@@ -76,7 +76,7 @@ export const newModsMessage = (mods: ListedMod[], community: string) => ({
   content: `New mods found for ${community}:`,
   embeds: mods.map((m) => ({
     title: m.name,
-    url: modUrl(m),
+    url: modUrl(m, community),
     author: { name: m.namespace },
     description: m.description,
     thumbnail: { url: m.iconUrl },

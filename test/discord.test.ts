@@ -70,7 +70,7 @@ describe("messages", () => {
     const m = newModsMessage([listed, { ...listed, name: "C" }], "slip-skid");
     expect(m.content).toBe("New mods found for slip-skid:");
     expect(m.embeds.map((e) => e.title)).toEqual(["B", "C"]);
-    expect(m.embeds[0]).toMatchObject({ url: "https://thunderstore.io/package/A/B/", author: { name: "A" } });
+    expect(m.embeds[0]).toMatchObject({ url: "https://thunderstore.io/c/slip-skid/p/A/B/", author: { name: "A" } });
   });
 });
 

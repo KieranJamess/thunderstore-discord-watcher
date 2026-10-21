@@ -77,7 +77,9 @@ export function isNewerVersion(candidate: string, current: string): boolean {
   return false;
 }
 
-export const modUrl = (ref: ModRef) => `${BASE}/package/${ref.namespace}/${ref.name}/`;
+// The community-less /package/ URL redirects to Risk of Rain 2, so scope links whenever we know the community.
+export const modUrl = (ref: ModRef, community?: string) =>
+  community ? `${BASE}/c/${community}/p/${ref.namespace}/${ref.name}/` : `${BASE}/package/${ref.namespace}/${ref.name}/`;
 
 /** GET JSON; null on 404, throws on any other failure. */
 async function getJson<T>(http: Http, url: string): Promise<T | null> {
@@ -121,15 +123,16 @@ export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null>
     community_listings?: { community: string }[];
   }>(http, `${BASE}/api/experimental/package/${ref.namespace}/${ref.name}/`);
   if (!d) return null;
+  // ponytail: first listing only; a mod in several communities shows one of them.
+  const community = d.community_listings?.[0]?.community;
   return {
     namespace: d.namespace,
     name: d.name,
     version: d.latest.version_number,
     description: d.latest.description,
     iconUrl: d.latest.icon,
-    url: d.package_url,
-    // ponytail: first listing only; a mod in several communities shows one of them.
-    community: d.community_listings?.[0]?.community,
+    url: community ? modUrl(d, community) : d.package_url,
+    community,
   };
 }
 

@@ -47,6 +47,12 @@ describe("isNewerVersion", () => {
 
 it("modUrl builds the package page", () => {
   expect(modUrl({ namespace: "A", name: "B" })).toBe("https://thunderstore.io/package/A/B/");
+  expect(modUrl({ namespace: "A", name: "B" }, "slip-skid")).toBe("https://thunderstore.io/c/slip-skid/p/A/B/");
+});
+
+it("fetchMod links to the mod's community page", async () => {
+  const { http } = fakeHttp({ [MOD_URL]: () => json({ ...modBody, community_listings: [{ community: "slip-skid" }] }) });
+  expect((await fetchMod(http, { namespace: "A", name: "B" }))?.url).toBe("https://thunderstore.io/c/slip-skid/p/A/B/");
 });
 
 const MOD_URL = "https://thunderstore.io/api/experimental/package/A/B/";
