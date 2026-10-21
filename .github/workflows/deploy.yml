@@ -12,6 +12,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -31,3 +33,15 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Posts the pushed feat:/fix: commit subjects to #changelog in the community server.
+      - name: Post changelog
+        if: github.event_name == 'push'
+        env:
+          WEBHOOK: ${{ secrets.DISCORD_CHANGELOG_WEBHOOK }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          [ -z "$WEBHOOK" ] && exit 0
+          notes=$(git log --reverse --format='- %s' "$BEFORE..HEAD" | grep -E '^- (feat|fix)' | head -c 1900 || true)
+          [ -z "$notes" ] && exit 0
+          jq -n --arg c "**Update deployed**"$'\n'"$notes" '{content: $c}' \
+            | curl -fsS -H 'Content-Type: application/json' -d @- "$WEBHOOK"
