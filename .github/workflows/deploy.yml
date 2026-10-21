@@ -16,6 +16,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # The committed wrangler.toml keeps a placeholder database ID.
+      - run: sed -i "s/<set-after-wrangler-d1-create>/$D1_DATABASE_ID/" wrangler.toml
+        env:
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm test
