@@ -1,5 +1,6 @@
 import { handleInteraction } from "./commands";
 import { verifyDiscordRequest } from "./discord";
+import { legalPage } from "./legal";
 import { runPoll } from "./poll";
 
 export interface Env {
@@ -11,6 +12,7 @@ export interface Env {
 
 export default {
   async fetch(request, env, ctx) {
+    if (request.method === "GET") return legalPage(new URL(request.url).pathname) ?? new Response("Not found", { status: 404 });
     if (request.method !== "POST") return new Response("Not found", { status: 404 });
     const body = await request.text();
     const ok = await verifyDiscordRequest(
