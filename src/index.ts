@@ -12,7 +12,8 @@ export interface Env {
 
 export default {
   async fetch(request, env, ctx) {
-    if (request.method === "GET") return legalPage(new URL(request.url).pathname) ?? new Response("Not found", { status: 404 });
+    // HEAD too: link checkers (including Discord's portal) use it to see if the page exists.
+    if (request.method === "GET" || request.method === "HEAD") return legalPage(new URL(request.url).pathname) ?? new Response("Not found", { status: 404 });
     if (request.method !== "POST") return new Response("Not found", { status: 404 });
     const body = await request.text();
     const ok = await verifyDiscordRequest(
