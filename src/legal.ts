@@ -1,6 +1,6 @@
 // Linked from the Discord Developer Portal for App Directory listing. Keep these in step with what the bot stores and does.
 
-const UPDATED = "21 October 2026";
+const UPDATED = "28 October 2026";
 const ISSUES = "https://github.com/KieranJamess/thunderstore-discord-watcher/issues";
 
 const page = (title: string, body: string) => `<!doctype html>
@@ -38,7 +38,7 @@ const PRIVACY = page(
 <p>The stored data is used only to post announcements in the channels you choose. It is never sold or shared, except with the services that run the bot: Cloudflare hosts the bot and its database, and Discord delivers commands and messages.</p>
 <h2>Removing your data</h2>
 <ul>
-  <li>Use <code>/unwatch</code> to remove a watch.</li>
+  <li>Use <code>/unwatch</code> to remove a watch and any announcements still waiting to be posted for it.</li>
   <li>If the bot loses access to a channel, or the channel is deleted, that channel's watches are removed the next time it tries to post there.</li>
   <li>To have all data for your server removed, <a href="${ISSUES}">open an issue</a> with your server ID.</li>
 </ul>

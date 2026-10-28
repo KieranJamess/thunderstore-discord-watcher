@@ -54,6 +54,14 @@ describe("removeWatch", () => {
     expect(await removeWatch(db(), "g2", w2.id)).toBe(true);
     expect(await targetState(T)).toBeUndefined();
   });
+  it("drops posts already queued for that watch only", async () => {
+    await addWatch(db(), "g1", "c1", T, "1.0.0");
+    await addWatch(db(), "g1", "c2", T, "1.0.0");
+    await queueAnnouncement(db(), T, "2.0.0", 1, [{ body: { content: "x" } }]);
+    const [w1] = await listWatches(db(), "g1");
+    await removeWatch(db(), "g1", w1.id);
+    expect((await pendingPosts(db(), 10)).map((p) => p.channelId)).toEqual(["c2"]);
+  });
 });
 
 it("dueTargets returns the least recently checked first", async () => {

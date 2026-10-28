@@ -44,6 +44,7 @@ export async function addWatch(
 export async function removeWatch(db: D1Database, guildId: string, watchId: number): Promise<boolean> {
   const [del] = await db.batch([
     db.prepare("DELETE FROM watches WHERE id = ? AND guild_id = ?").bind(watchId, guildId),
+    db.prepare("DELETE FROM outbox WHERE watch_id NOT IN (SELECT id FROM watches)"),
     db.prepare(DROP_ORPHANS),
   ]);
   return del.meta.changes > 0;
@@ -87,7 +88,7 @@ export async function queueAnnouncement(
   messages: Announcement[],
 ): Promise<void> {
   const insert = db.prepare(
-    `INSERT INTO outbox (channel_id, body) SELECT channel_id, ?1 FROM watches w WHERE target_id = ?2
+    `INSERT INTO outbox (channel_id, body, watch_id) SELECT channel_id, ?1, id FROM watches w WHERE target_id = ?2
      AND NOT EXISTS (SELECT 1 FROM watches c WHERE c.channel_id = w.channel_id AND c.target_id = ?3) ORDER BY id`,
   );
   await db.batch([
