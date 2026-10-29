@@ -56,6 +56,20 @@ describe("fetchRecentlyUpdated", () => {
 });
 
 describe("updates watches", () => {
+  it("labels a mod listed in several communities with the watched one", async () => {
+    await addWatch(env.DB, "g1", "c1", TARGET, "2026-10-01T00:00:00Z");
+    const { http } = fakeHttp({
+      [LISTING]: () => json({ results: [row("Multi", "2026-10-02T00:00:00Z")] }),
+      [pkg("Multi")]: () =>
+        json({ ...modBody("Multi", "1.0.0"), community_listings: [{ community: "timberborn" }, { community: "slip-skid" }] }),
+      [changelog("Multi", "1.0.0")]: () => json({ markdown: null }),
+      ...recordPost,
+    });
+    await poll(http);
+    expect(posted.map((p) => [p.content, p.embeds[0].url])).toEqual([
+      ["**slip-skid/Multi** has been updated to v1.0.0", "https://thunderstore.io/c/slip-skid/p/A/Multi/"],
+    ]);
+  });
   it("posts each updated mod separately with its changelog, oldest first", async () => {
     await addWatch(env.DB, "g1", "c1", TARGET, "2026-10-01T00:00:00Z");
     const { http } = fakeHttp({

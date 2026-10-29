@@ -151,7 +151,7 @@ async function checkUpdates(http: Http, community: string, state: string | null,
   for (const m of batch) {
     // A mod's first release also bumps its update time; /watch community covers new mods.
     if (at(m) - Date.parse(m.createdAt) < BRAND_NEW_MS) continue;
-    const mod = await fetchMod(http, m);
+    const mod = await fetchMod(http, m, community);
     if (!mod) continue;
     const body = modUpdateMessage(mod, await fetchChangelog(http, mod, mod.version));
     messages.push({ body, coveredBy: modTargetId(m) });

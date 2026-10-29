@@ -114,7 +114,8 @@ export async function fetchChangelog(http: Http, ref: ModRef, version: string): 
   }
 }
 
-export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null> {
+/** `community` labels and links the mod there; otherwise its first listing is used. */
+export async function fetchMod(http: Http, ref: ModRef, community?: string): Promise<ModInfo | null> {
   const d = await getJson<{
     namespace: string;
     name: string;
@@ -123,8 +124,8 @@ export async function fetchMod(http: Http, ref: ModRef): Promise<ModInfo | null>
     community_listings?: { community: string }[];
   }>(http, `${BASE}/api/experimental/package/${ref.namespace}/${ref.name}/`);
   if (!d) return null;
-  // ponytail: first listing only; a mod in several communities shows one of them.
-  const community = d.community_listings?.[0]?.community;
+  // ponytail: a /watch mod of a mod in several communities shows the first one.
+  community ??= d.community_listings?.[0]?.community;
   return {
     namespace: d.namespace,
     name: d.name,
